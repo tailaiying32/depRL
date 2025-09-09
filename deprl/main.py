@@ -7,6 +7,7 @@ import torch
 from deprl import custom_distributed
 from deprl.utils import load_checkpoint, prepare_params
 from deprl.vendor.tonic import logger
+import wandb
 
 
 def train(
@@ -16,6 +17,7 @@ def train(
     Trains an agent on an environment.
     """
     tonic_conf = config["tonic"]
+
 
     # Run the header first, e.g. to load an ML framework.
     if "header" in tonic_conf:
@@ -81,6 +83,7 @@ def train(
         resume=tonic_conf["resume"],
     )
     path = logger.get_path()
+
 
     # Process the checkpoint path same way as in tonic_conf.play
     checkpoint_path = os.path.join(path, "checkpoints")

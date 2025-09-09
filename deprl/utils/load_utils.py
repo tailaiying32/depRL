@@ -7,6 +7,7 @@ import yaml
 from deprl.vendor.tonic import logger
 
 
+
 def load(path, environment, checkpoint="last"):
     config, checkpoint_path, _ = load_checkpoint(path, checkpoint)
     header = config["tonic"]["header"]
@@ -30,7 +31,7 @@ def load(path, environment, checkpoint="last"):
 
 def load_time_dict(checkpoint_path):
     try:
-        return torch.load(os.path.join(checkpoint_path, "time.pt"))
+        return torch.load(os.path.join(checkpoint_path, "time.pt"), weights_only=False)
     except FileNotFoundError:
         logger.log(
             "Found only the policy checkpoint, the previous run was likely only run with  <'full_save': False>"

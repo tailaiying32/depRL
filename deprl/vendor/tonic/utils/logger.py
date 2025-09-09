@@ -7,6 +7,7 @@ import pandas as pd
 import termcolor
 import torch
 import yaml
+import wandb
 
 from deprl.vendor.tonic.utils import normalize_path_decorator
 
@@ -128,6 +129,7 @@ class Logger:
 
         # Compute statistics if needed.
         keys = list(self.epoch_dict.keys())
+        print("keys: " + str(keys))
         for key in keys:
             values = self.epoch_dict[key]
             if key in self.stat_keys:
@@ -226,6 +228,10 @@ class Logger:
         else:
             with open(self.log_file_path, "a") as file:
                 file.write(",".join(map(str, vals)) + "\n")
+        
+        wandb.log({
+            "Testing/episode_score": self.epoch_dict["test/episode_score/mean"]
+        }, step=int(self.epoch_dict["train/steps"]))
 
         self.epoch_dict.clear()
         self.last_epoch_progress = None
@@ -265,6 +271,9 @@ class Logger:
             )
             print(msg[epoch_progress:], sep="", end="")
             self.last_epoch_progress = epoch_progress
+    
+    def get_epoch_dict(self):
+        return self.epoch_dict.copy()
 
 
 def initialize(*args, **kwargs):

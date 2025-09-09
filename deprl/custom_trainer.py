@@ -4,6 +4,10 @@ import time
 import numpy as np
 import torch
 
+import wandb
+
+
+
 from deprl.custom_test_environment import (
     test_dm_control,
     test_mujoco,
@@ -38,10 +42,24 @@ class Trainer:
     def initialize(
         self, agent, environment, test_environment=None, full_save=False
     ):
+        print("initializing trainer!")
+
         self.full_save = full_save
         self.agent = agent
         self.environment = environment
         self.test_environment = test_environment
+        wandb.login()
+        wandb.init(
+            project="Myosuite",
+            entity="taiying9627-cornell-university",
+
+            config={
+                "steps": self.max_steps,
+                "epoch_steps": self.epoch_steps,
+                "save_steps": self.save_steps,
+                "test_episodes": self.test_episodes,
+            }
+        )
 
     def run(self, params, steps=0, epochs=0, episodes=0):
         """Runs the main training loop."""
@@ -65,10 +83,37 @@ class Trainer:
                 )
             else:
                 greedy_episode = None
+            
+            # if np.isnan(observations).any():
+            #     print(f"WARNING: NaN detected in observations at step {self.steps}")
+            #     print(f"Observation shape: {observations.shape}, contains {np.sum(np.isnan(observations))} NaN values")
+                
+            #     print(f"Recent observation stats: min={observations.min()}, max={observations.max()}")
+            #     print(f"Recent observation has NaNs: {np.isnan(observations).any()}")
+                
+            #     safe_observations = np.nan_to_num(observations, nan=0.0)
+                
+            #     print("Replacing NaN observations with safe values to continue training")
+            #     observations = safe_observations
+
             assert not np.isnan(observations.sum())
+
             actions = self.agent.step(
                 observations, self.steps, muscle_states, greedy_episode
             )
+
+            if np.isnan(actions).any():
+                print(f"WARNING: NaN detected in actions at step {self.steps}")
+                print(f"Action shape: {actions.shape}, contains {np.sum(np.isnan(actions))} NaN values")
+                
+                print(f"Recent observation stats: min={observations.min()}, max={observations.max()}")
+                print(f"Recent observation has NaNs: {np.isnan(observations).any()}")
+                
+                safe_actions = np.nan_to_num(actions, nan=0.0)
+                
+                print("Replacing NaN actions with safe values to continue training")
+                actions = safe_actions
+
             assert not np.isnan(actions.sum())
             # raise Exception(f'{type(self.environment.environments[0])}')
             logger.store("train/action", actions, stats=True)
@@ -106,6 +151,11 @@ class Trainer:
                                 self.agent.replay.action_cost,
                             )
                             self.agent.replay.adjust(scores[i])
+                    
+                    # log the training scores
+                    wandb.log({
+                        "Training/episode_score": scores[i],
+                    }, step=self.steps)
                     scores[i] = 0
                     lengths[i] = 0
                     episodes += 1
@@ -159,6 +209,7 @@ class Trainer:
                 last_epoch_time = time.time()
                 epoch_steps = 0
 
+
                 logger.dump()
 
             # End of training.
@@ -184,6 +235,8 @@ class Trainer:
 
             if stop_training:
                 self.close_mp_envs()
+                wandb.finish()
+
                 return scores
 
     def close_mp_envs(self):

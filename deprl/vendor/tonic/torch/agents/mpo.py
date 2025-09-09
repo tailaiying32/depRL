@@ -118,9 +118,29 @@ class MPO(Agent):
     def _update_actor_critic(
         self, observations, actions, next_observations, rewards, discounts
     ):
+        
+        # Add gradient checks and clipping
+
+        # After computing the actor gradients but before optimizer.step()
+        # Find this section in the _update_actor_critic method
+
+        # Add this before any optimizer.step() calls:
+        # Clip actor gradients
+        for param in self.model.actor.parameters():
+            if param.grad is not None:
+                param.grad.data = torch.nan_to_num(param.grad.data, nan=0.0)
+        torch.nn.utils.clip_grad_norm_(self.model.actor.parameters(), max_norm=1.0)
+
+        # Similarly for critic parameters
+        for param in self.model.critic.parameters():
+            if param.grad is not None:
+                param.grad.data = torch.nan_to_num(param.grad.data, nan=0.0)
+        torch.nn.utils.clip_grad_norm_(self.model.critic.parameters(), max_norm=1.0)
+        
         critic_infos = self.critic_updater(
             observations, actions, next_observations, rewards, discounts
         )
         actor_infos = self.actor_updater(observations)
         self.model.update_targets()
         return dict(critic=critic_infos, actor=actor_infos)
+

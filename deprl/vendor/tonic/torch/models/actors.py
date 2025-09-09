@@ -65,8 +65,15 @@ class DetachedScaleGaussianPolicyHead(torch.nn.Module):
 
     def forward(self, inputs):
         loc = self.loc_layer(inputs)
+        # sanitize loc
+        loc = torch.nan_to_num(loc, nan=0.0, posinf=0.0, neginf=0.0)
+        # keep loc in [-1, 1] given Tanh activation
+        loc = torch.clamp(loc, -1.0, 1.0)
+
         batch_size = inputs.shape[0]
         scale = torch.nn.functional.softplus(self.log_scale) + FLOAT_EPSILON
+        # sanitize and clamp scale
+        scale = torch.nan_to_num(scale, nan=self.scale_min, posinf=self.scale_max, neginf=self.scale_min)
         scale = torch.clamp(scale, self.scale_min, self.scale_max)
         scale = scale.repeat(batch_size, 1)
         return self.distribution(loc, scale)
@@ -107,7 +114,15 @@ class GaussianPolicyHead(torch.nn.Module):
     def forward(self, inputs):
         loc = self.loc_layer(inputs)
         scale = self.scale_layer(inputs)
+
+        # sanitize loc/scale before clamping
+        loc = torch.nan_to_num(loc, nan=0.0, posinf=0.0, neginf=0.0)
+        scale = torch.nan_to_num(scale, nan=self.scale_min, posinf=self.scale_max, neginf=self.scale_min)
+
+        # keep loc bounded (Tanh already), and ensure valid scale
+        loc = torch.clamp(loc, -1.0, 1.0)
         scale = torch.clamp(scale, self.scale_min, self.scale_max)
+
         return self.distribution(loc, scale)
 
 
@@ -148,4 +163,6 @@ class Actor(torch.nn.Module):
     def forward(self, *inputs):
         out = self.encoder(*inputs)
         out = self.torso(out)
+        # extra safety: sanitize features before head
+        out = torch.nan_to_num(out, nan=0.0, posinf=0.0, neginf=0.0)
         return self.head(out)

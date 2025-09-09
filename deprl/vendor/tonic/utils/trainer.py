@@ -6,6 +6,8 @@ import numpy as np
 from deprl.vendor.tonic.utils import logger
 
 
+
+
 class Trainer:
     """Trainer used to train and evaluate an agent on an environment."""
 
@@ -29,6 +31,9 @@ class Trainer:
         self.agent = agent
         self.environment = environment
         self.test_environment = test_environment
+
+
+
 
     def run(self):
         """Runs the main training loop."""
@@ -73,6 +78,7 @@ class Trainer:
                     logger.store(
                         "train/episode_length", lengths[i], stats=True
                     )
+
                     scores[i] = 0
                     lengths[i] = 0
                     episodes += 1
@@ -96,9 +102,12 @@ class Trainer:
                 logger.store("train/steps", self.steps)
                 logger.store("train/worker_steps", self.steps // num_workers)
                 logger.store("train/steps_per_second", sps)
+
+
                 logger.dump()
                 last_epoch_time = time.time()
                 epoch_steps = 0
+
 
             # End of training.
             stop_training = self.steps >= self.max_steps
@@ -117,6 +126,7 @@ class Trainer:
 
             if stop_training:
                 break
+
 
     def _test(self):
         """Tests the agent on the test environment."""
@@ -153,3 +163,4 @@ class Trainer:
             # Log the data.
             logger.store("test/episode_score", score, stats=True)
             logger.store("test/episode_length", length, stats=True)
+
