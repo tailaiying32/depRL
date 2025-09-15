@@ -8,6 +8,8 @@ from deprl import custom_distributed
 from deprl.utils import load_checkpoint, prepare_params
 from deprl.vendor.tonic import logger
 import wandb
+import hydra
+from omegaconf import DictConfig, OmegaConf
 
 
 def train(
@@ -139,9 +141,10 @@ def set_tensor_device():
     else:
         logger.log("No CUDA or MPS detected, running on CPU")
 
-
-def main():
-    config = prepare_params()
+@hydra.main(config_path="../../robot_arm", config_name="train.yaml")
+def main(cfg: DictConfig):
+    config = OmegaConf.to_container(cfg, resolve=True)
+    # config = prepare_params()
     if "cpu_override" in config["tonic"] and config["tonic"]["cpu_override"]:
         torch.set_default_device("cpu")
         logger.log("Manually forcing CPU run.")
