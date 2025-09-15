@@ -144,7 +144,6 @@ def set_tensor_device():
 @hydra.main(config_path="../../robot_arm", config_name="train.yaml")
 def main(cfg: DictConfig):
     config = OmegaConf.to_container(cfg, resolve=True)
-    # config = prepare_params()
     if "cpu_override" in config["tonic"] and config["tonic"]["cpu_override"]:
         torch.set_default_device("cpu")
         logger.log("Manually forcing CPU run.")
