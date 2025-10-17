@@ -42,16 +42,22 @@ class Trainer:
     def initialize(
         self, agent, environment, test_environment=None, full_save=False
     ):
-        print("initializing trainer!")
 
         self.full_save = full_save
         self.agent = agent
         self.environment = environment
         self.test_environment = test_environment
+
+        env_name = type(environment.environments[0].unwrapped).__name__
+        agent_name = type(self.agent).__name__
+        timestamp = time.strftime("%Y%m%d-%H%M%S")
+        run_name = f"{env_name}_{agent_name}_{timestamp}"
+
         wandb.login()
         wandb.init(
             project="Myosuite",
-            entity="taiying9627-cornell-university",
+            entity="tty6-cornell-university",
+            name=run_name,
 
             config={
                 "steps": self.max_steps,
@@ -63,7 +69,6 @@ class Trainer:
 
     def run(self, params, steps=0, epochs=0, episodes=0):
         """Runs the main training loop."""
-
         start_time = last_epoch_time = time.time()
 
         # Start the environments.
@@ -83,18 +88,7 @@ class Trainer:
                 )
             else:
                 greedy_episode = None
-            
-            # if np.isnan(observations).any():
-            #     print(f"WARNING: NaN detected in observations at step {self.steps}")
-            #     print(f"Observation shape: {observations.shape}, contains {np.sum(np.isnan(observations))} NaN values")
-                
-            #     print(f"Recent observation stats: min={observations.min()}, max={observations.max()}")
-            #     print(f"Recent observation has NaNs: {np.isnan(observations).any()}")
-                
-            #     safe_observations = np.nan_to_num(observations, nan=0.0)
-                
-            #     print("Replacing NaN observations with safe values to continue training")
-            #     observations = safe_observations
+        
 
             assert not np.isnan(observations.sum())
 
@@ -152,16 +146,19 @@ class Trainer:
                             )
                             self.agent.replay.adjust(scores[i])
                     
-                    # log the training scores
+                    # log the training scores move to end
                     wandb.log({
                         "Training/episode_score": scores[i],
                     }, step=self.steps)
+
                     scores[i] = 0
                     lengths[i] = 0
                     episodes += 1
 
             # End of the epoch.
             if epoch_steps >= self.epoch_steps:
+                print(f"DEBUG: test_environment = {self.test_environment}")
+
                 # Evaluate the agent on the test environment.
                 if self.test_environment:
                     if (
@@ -172,7 +169,7 @@ class Trainer:
                             )
                         ).lower()
                     ):
-                        _ = test_dm_control(
+                        test_score = test_dm_control(
                             self.test_environment, self.agent, steps, params
                         )
 
@@ -184,14 +181,20 @@ class Trainer:
                             )
                         ).lower()
                     ):
-                        _ = test_scone(
+                        test_score = test_scone(
                             self.test_environment, self.agent, steps, params
                         )
 
                     else:
-                        _ = test_mujoco(
+                        test_score = test_mujoco(
                             self.test_environment, self.agent, steps, params
                         )
+
+                    # log testing score
+                    print(f"DEBUG: test_score = {test_score}, type = {type(test_score)}")
+                    wandb.log({
+                        "test/episode_score": test_score,
+                    }, step=self.steps)
 
                 # Log the data.
                 epochs += 1
